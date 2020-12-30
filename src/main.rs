@@ -21,11 +21,15 @@ fn main() {
     let mut stderr = stderr();
     let mut current_db = "None".to_string();
     // let mut location = std::env::current_dir().unwrap();
-    let connection = TcpStream::connect("localhost:1234").unwrap();
+    let mut connection = TcpStream::connect("localhost:1234").unwrap();
     loop {
         let input = read_input(&current_db, &mut stdin, &mut stdout, &mut stderr, &input_history);
-        input_history.push(input.clone());
-        current_db = commands::parse(input, &current_db);
+
+        connection.write_all(format!("{}\n", input).as_bytes());
+        connection.flush();
+
+        // input_history.push(input.clone());
+        // current_db = commands::parse(input, &current_db);
     }
 }
 
@@ -39,21 +43,7 @@ fn read_input(cdb: &String, sin: &mut Stdin, out: &mut Stdout, err: &mut Stderr,
     let chars = Vec::<char>::new();
     while byte != structs::NEWLINE {
         let _ = sin.read(&mut byte);
-
-        let ch = structs::char_from_byte(&byte);
-        match ch {
-            Character::Left => {}
-            Character::Right => {}
-            Character::Up => {
-                println!("Up!");
-            }
-            Character::Down => {}
-            _ => {
-                buf.push(byte[0]);
-            }
-        }
-        println!("{:?}", byte);
-        out.flush();
+        buf.push(byte[0]);
     }
 
     input = String::from_utf8(buf).unwrap();
