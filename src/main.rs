@@ -24,52 +24,58 @@ fn main() {
     let mut stderr = stderr();
     let mut current_db = "None".to_string();
     // let mut location = std::env::current_dir().unwrap();
-    let mut connection = TcpStream::connect("localhost:1234").unwrap();
-    let mut r = BufReader::new(&mut connection);
     let mut is_key = true;
     let mut raw_key = Vec::<u8>::new();
     let mut key = SecretKey::default();
-    loop {
-        let mut byte: [u8; 1] = [0];
-        r.read_exact(&mut byte);
-
-
-        if is_key {
-            let bt = byte.first().unwrap();
-            match bt {
-                10 => {
-                    is_key = false;
-                    // println!("key: {:?}", key);
-                    let sec = SecretKey::from_slice(raw_key.as_slice());
-                    if sec.is_ok() {
-                        println!("Key created correctly");
-                        key = sec.unwrap();
-                        println!("Key match: {}", key == raw_key.as_slice());
-                    } else {
-                        println!("{}", sec.unwrap_err());
+    let con_res = TcpStream::connect("localhost:1234");
+    if con_res.is_ok() {
+        let mut connection = con_res.unwrap();
+        let mut r = BufReader::new(&mut connection);
+        loop {
+            let mut byte: [u8; 1] = [0];
+            r.read_exact(&mut byte);
+    
+    
+            if is_key {
+                let bt = byte.first().unwrap();
+                match bt {
+                    10 => {
+                        is_key = false;
+                        // println!("key: {:?}", key);
+                        let sec = SecretKey::from_slice(raw_key.as_slice());
+                        if sec.is_ok() {
+                            println!("Key created correctly");
+                            key = sec.unwrap();
+                            println!("Key match: {}", key == raw_key.as_slice());
+                        } else {
+                            println!("{}", sec.unwrap_err());
+                        }
+                    }
+                    _ => {
+                        raw_key.push(bt.clone());
                     }
                 }
-                _ => {
-                    raw_key.push(bt.clone());
-                }
+            } else {
+                println!("Sending response");
+                let mut writer = BufWriter::new(&mut connection);
+                let payload = seal(&key, b"Hello World").unwrap();
+                writer.write_all(payload.as_slice());
+                writer.flush();
+                exit(1);
             }
-        } else {
-            println!("Sending response");
-            let mut writer = BufWriter::new(&mut connection);
-            let payload = seal(&key, b"Hello World").unwrap();
-            writer.write_all(payload.as_slice());
-            writer.flush();
-            exit(1);
+    
+    
+            // let input = read_input(&current_db, &mut stdin, &mut stdout, &mut stderr, &input_history);
+            //
+            // connection.write_all(format!("{}\n", input).as_bytes());
+            // connection.flush();
+    
+            // input_history.push(input.clone());
+            // current_db = commands::parse(input, &current_db);
         }
-
-
-        // let input = read_input(&current_db, &mut stdin, &mut stdout, &mut stderr, &input_history);
-        //
-        // connection.write_all(format!("{}\n", input).as_bytes());
-        // connection.flush();
-
-        // input_history.push(input.clone());
-        // current_db = commands::parse(input, &current_db);
+    } else {
+        println!("Connection attempt unsuccessful");
+        println!("{}", con_res.unwrap_err());
     }
 }
 
